@@ -17,4 +17,4 @@ int b64_pton (char const *, unsigned char *, size_t);
 
 #include_next <resolv.h>
 
-#endif _LIBEGACY_RESOLV_H_
+#endif
