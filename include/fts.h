@@ -1,5 +1,4 @@
-/*	$OpenBSD: fts.h,v 1.14 2012/12/05 23:19:57 deraadt Exp $	*/
-/*	$NetBSD: fts.h,v 1.7 2012/03/01 16:18:51 hans Exp $	*/
+/*	$NetBSD: fts.h,v 1.19 2009/08/16 19:33:38 christos Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993
@@ -35,19 +34,52 @@
 #ifndef	_FTS_H_
 #define	_FTS_H_
 
+#ifndef	__fts_stat_t
+#define	__fts_stat_t	struct stat
+#endif
+#ifndef	__fts_nlink_t
+#define	__fts_nlink_t	nlink_t
+#endif
+#ifndef	__fts_ino_t
+#define	__fts_ino_t	ino_t
+#endif
+#ifndef	__fts_length_t
+#define	__fts_length_t	unsigned int
+#endif
+#ifndef	__fts_number_t
+#define	__fts_number_t	int64_t
+#endif
+#ifndef	__fts_dev_t
+#define	__fts_dev_t	dev_t
+#endif
+#ifndef	__fts_level_t
+#define	__fts_level_t	int
+#endif
+
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */
+	struct _ftsent **fts_array;	/* sort array */
 	dev_t fts_dev;			/* starting device # */
 	char *fts_path;			/* path for this descent */
-	size_t fts_pathlen;		/* sizeof(path) */
+	int fts_rfd;			/* fd for root */
+	unsigned int fts_pathlen;	/* sizeof(path) */
+	unsigned int fts_nitems;	/* elements in the sort array */
+	int (*fts_compar)		/* compare function */
+		(const struct _ftsent **, const struct _ftsent **);
 
-#define	FTS_NOCHDIR	0x0004		/* don't change directories */
-#define	FTS_PHYSICAL	0x0010		/* physical walk */
-#define	FTS_XDEV	0x0040		/* don't cross devices */
-#define	FTS_OPTIONMASK	0x0054		/* valid user option mask */
+#define	FTS_COMFOLLOW	0x001		/* follow command line symlinks */
+#define	FTS_LOGICAL	0x002		/* logical walk */
+#define	FTS_NOCHDIR	0x004		/* don't change directories */
+#define	FTS_NOSTAT	0x008		/* don't get stat info */
+#define	FTS_PHYSICAL	0x010		/* physical walk */
+#define	FTS_SEEDOT	0x020		/* return dot and dot-dot */
+#define	FTS_XDEV	0x040		/* don't cross devices */
+#define	FTS_WHITEOUT	0x080		/* return whiteout information */
+#define	FTS_OPTIONMASK	0x0ff		/* valid user option mask */
 
-#define	FTS_STOP	0x2000		/* (private) unrecoverable error */
+#define	FTS_NAMEONLY	0x100		/* (private) child names only */
+#define	FTS_STOP	0x200		/* (private) unrecoverable error */
 	int fts_options;		/* fts_open options, global flags */
 } FTS;
 
@@ -55,20 +87,22 @@ typedef struct _ftsent {
 	struct _ftsent *fts_cycle;	/* cycle node */
 	struct _ftsent *fts_parent;	/* parent directory */
 	struct _ftsent *fts_link;	/* next file in directory */
+	__fts_number_t fts_number;      /* local numeric value */
+	void *fts_pointer;	        /* local address value */
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
-	size_t fts_pathlen;		/* strlen(fts_path) */
-	size_t fts_namelen;		/* strlen(fts_name) */
+	int fts_symfd;			/* fd for symlink */
+	__fts_length_t fts_pathlen;	/* strlen(fts_path) */
+	__fts_length_t fts_namelen;	/* strlen(fts_name) */
 
-	ino_t fts_ino;			/* inode */
-	dev_t fts_dev;			/* device */
-	nlink_t fts_nlink;		/* link count */
+	__fts_ino_t fts_ino;		/* inode */
+	__fts_dev_t fts_dev;		/* device */
+	__fts_nlink_t fts_nlink;	/* link count */
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
-#define	FTS_MAXLEVEL		 0x7fffffff
-	int fts_level;		/* depth (-1 to N) */
+	__fts_level_t fts_level;		/* depth (-1 to N) */
 
 #define	FTS_D		 1		/* preorder directory */
 #define	FTS_DC		 2		/* directory that causes cycles */
@@ -82,25 +116,37 @@ typedef struct _ftsent {
 #define	FTS_NS		10		/* stat(2) failed */
 #define	FTS_NSOK	11		/* no stat(2) requested */
 #define	FTS_SL		12		/* symbolic link */
+#define	FTS_SLNONE	13		/* symbolic link without target */
+#define	FTS_W		14		/* whiteout object */
 	unsigned short fts_info;	/* user flags for FTSENT structure */
 
+#define	FTS_DONTCHDIR	 0x01		/* don't chdir .. to the parent */
+#define	FTS_SYMFOLLOW	 0x02		/* followed a symlink to get here */
+#define	FTS_ISW		 0x04		/* this is a whiteout object */
+	unsigned short fts_flags;	/* private flags for FTSENT structure */
+
+#define	FTS_AGAIN	 1		/* read node again */
+#define	FTS_FOLLOW	 2		/* follow symbolic link */
 #define	FTS_NOINSTR	 3		/* no instructions */
 #define	FTS_SKIP	 4		/* discard node */
 	unsigned short fts_instr;	/* fts_set() instructions */
 
-	struct stat *fts_statp;		/* stat(2) information */
+	__fts_stat_t *fts_statp;	/* stat(2) information */
 	char fts_name[1];		/* file name */
 } FTSENT;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+FTSENT	*fts_children(FTS *, int);
 int	 fts_close(FTS *);
-FTS	*fts_open(char * const *, int, void *);
+FTS	*fts_open(char * const *, int,
+    int (*)(const FTSENT **, const FTSENT **));
 FTSENT	*fts_read(FTS *);
 int	 fts_set(FTS *, FTSENT *, int);
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif /* !_FTS_H_ */
