@@ -56,7 +56,9 @@
  *	Number of matches in the current invocation of glob.
  */
 
+#define _GNU_SOURCE
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <ctype.h>
 #include <dirent.h>
