@@ -8,4 +8,4 @@ libegacy.a: $(OBJ)
 	$(AR) crs $@ $^
 
 clean:
-	rm -f foo.a $(OBJ)
+	rm -f libegacy.a $(OBJ)
