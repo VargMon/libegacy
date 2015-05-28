@@ -41,6 +41,7 @@ __RCSID("$NetBSD: fts.c,v 1.48 2015/01/29 15:55:21 manu Exp $");
 #include <sys/stat.h>
 
 #include <assert.h>
+#define _DIAGASSERT(e)
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
