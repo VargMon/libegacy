@@ -1,6 +1,6 @@
 CPPFLAGS = -Iinclude
 
-OBJ = fts.o glob.o readpassphrase.o
+OBJ = base64.o fts.o glob.o readpassphrase.o
 
 all: libegacy.a
 
